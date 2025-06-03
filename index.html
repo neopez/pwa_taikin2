@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>都営浅草線 東日本橋 → 西馬込方面 電車情報</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* Interフォントのインポート */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            color: #fff; /* テキスト色を白に変更して黒背景に合うように */
+        }
+        /* カウントダウンタイマーの枠色設定 (RGBでカスタマイズ可能) */
+        .countdown-blue {
+            background-color: rgb(59, 130, 246); /* 青色 (Tailwind blue-600) - RGB値を変更してカスタマイズ */
+        }
+        .countdown-orange {
+            background-color: rgb(250, 140, 5); /* オレンジ色 (Tailwind orange-600) - RGB値を変更してカスタマイズ */
+        }
+        .countdown-red {
+            background-color: rgb(237, 44, 44); /* 赤色 (Tailwind red-500) - RGB値を変更してカスタマイズ */
+        }
+        .countdown-green {
+            background-color: rgb(66, 172, 82); /* 緑色 (Tailwind green-500) - RGB値を変更してカスタマイズ */
+        }
+    </style>
+    <link rel="manifest" href="manifest.json">
+	<script>
+	if ('serviceWorker' in navigator) {
+		window.addEventListener('load', () => {
+		navigator.serviceWorker.register('sw.js').then(registration => {
+		console.log('ServiceWorker registration successful with scope: ', registration.scope);
+		}, err => {
+		console.log('ServiceWorker registration failed: ', err);
+		}).catch(err => {
+		console.log(err)
+		});
+		});
+	}
+	</script>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 sm:p-6 bg-black">
+
+    <div id="root" class="w-full max-w-md">
+        </div>
+
+    <script type="text/babel">
+        // Reactコンポーネントの定義
+        const App = () => {
+            // 電車の発車時刻データ (時と分で定義)
+            // 18時から24時までの時刻に限定
+            const trainSchedule = [
+                { hour: 18, minute: 1 },
+                { hour: 18, minute: 7 },
+                { hour: 18, minute: 21 },
+                { hour: 18, minute: 32 },
+                { hour: 18, minute: 46 },
+                { hour: 18, minute: 52 },
+                { hour: 19, minute: 12 },
+                { hour: 19, minute: 16 },
+                { hour: 19, minute: 21 },
+                { hour: 19, minute: 38 },
+                { hour: 19, minute: 46 },
+                { hour: 19, minute: 53 },
+                { hour: 20, minute: 3 }, 
+                { hour: 20, minute: 10 },
+                { hour: 20, minute: 24 },
+                { hour: 20, minute: 36 },
+                { hour: 20, minute: 43 }, 
+                { hour: 21, minute: 6 },
+                { hour: 21, minute: 22 },
+                { hour: 21, minute: 42 },
+                { hour: 21, minute: 55 },
+                { hour: 22, minute: 5 },
+                { hour: 22, minute: 17 },
+                { hour: 22, minute: 38 },
+                { hour: 23, minute: 5 },
+                { hour: 23, minute: 23 },
+                { hour: 23, minute: 42 },
+                { hour: 23, minute: 54 },
+            ];
+
+            // ステート変数
+            const [countdownText, setCountdownText] = React.useState('--:--');
+            const [nextDepartureInfo, setNextDepartureInfo] = React.useState('--:-- 西馬込行き');
+            const [countdownColorClass, setCountdownColorClass] = React.useState('countdown-blue');
+            const [upcomingTrains, setUpcomingTrains] = React.useState([]);
+
+            /**
+             * 時刻を 'HH:MM' 形式でフォーマットするヘルパー関数
+             * @param {number} hour - 時
+             * @param {number} minute - 分
+             * @returns {string} フォーマットされた時刻文字列
+             */
+            const formatTime = (hour, minute) => {
+                return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+            };
+
+            /**
+             * 次の発車時刻を計算し、カウントダウンタイマーを更新する
+             */
+            const updateCountdown = () => {
+                const now = new Date();
+                let nextTrainDeparture = null; // 次の電車の発車時刻 (Dateオブジェクト)
+
+                // 今日のスケジュールから現在時刻より後の最初の電車を探す
+                for (const train of trainSchedule) {
+                    const departure = new Date(now.getFullYear(), now.getMonth(), now.getDate(), train.hour, train.minute, 0);
+                    if (departure > now) {
+                        nextTrainDeparture = departure;
+                        break; // 見つかったらループを抜ける
+                    }
+                }
+
+                // 今日の残りの電車が見つからなかった場合、明日の最初の電車を候補にする
+                if (!nextTrainDeparture) {
+                    const tomorrow = new Date(now);
+                    tomorrow.setDate(now.getDate() + 1); // 日付を翌日に設定
+                    if (trainSchedule.length > 0) {
+                        // 明日の最初の電車は、スケジュールの中で最も早い時刻の電車
+                        const firstTrainOfNextDay = trainSchedule.slice().sort((a, b) => (a.hour * 60 + a.minute) - (b.hour * 60 + b.minute))[0];
+                        nextTrainDeparture = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), firstTrainOfNextDay.hour, firstTrainOfNextDay.minute, 0);
+                    } else {
+                        // スケジュールが空の場合
+                        setCountdownText("--:--");
+                        setNextDepartureInfo("情報なし");
+                        setCountdownColorClass('countdown-blue');
+                        return; // 処理終了
+                    }
+                }
+
+                const distance = nextTrainDeparture.getTime() - now.getTime();
+                const remainingMinutesTotal = Math.floor(distance / (1000 * 60));
+
+                // 色のロジックを更新 (優先順位を考慮して記述)
+                if (remainingMinutesTotal < 6) {
+                    setCountdownColorClass('countdown-red');
+                } else if (remainingMinutesTotal < 8) {
+                    setCountdownColorClass('countdown-orange');
+                } else if (remainingMinutesTotal < 10) {
+                    setCountdownColorClass('countdown-green'); // 新しい緑色
+                } else {
+                    setCountdownColorClass('countdown-blue');
+                }
+
+                if (distance <= 0) { // 0以下の場合（発車済みまたはちょうど発車時刻）
+                    setCountdownText("00:00");
+                    setNextDepartureInfo("発車済み");
+                    // 発車済みになったら、次のインターバルで新しい電車を探すようにする
+                    return;
+                }
+
+                const remainingHours = Math.floor(distance / (1000 * 60 * 60));
+                const remainingMinutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const remainingSeconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                if (remainingHours >= 1) {
+                    setCountdownText("--:--");
+                } else {
+                    setCountdownText(`${String(remainingMinutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`);
+                }
+                // nextDepartureInfoは常に「西馬込行き」を含むように設定
+                setNextDepartureInfo(`${formatTime(nextTrainDeparture.getHours(), nextTrainDeparture.getMinutes())} 西馬込行き`);
+            };
+
+            /**
+             * 今後の電車時刻一覧を更新する
+             */
+            const updateTrainList = () => {
+                const now = new Date();
+                const allPotentialTrains = [];
+
+                // 今日と明日の2日分の電車をまとめて処理
+                for (let i = 0; i < 2; i++) {
+                    const currentDay = new Date(now);
+                    currentDay.setDate(now.getDate() + i); // i=0で今日、i=1で明日
+
+                    for (const train of trainSchedule) {
+                        const departure = new Date(currentDay.getFullYear(), currentDay.getMonth(), currentDay.getDate(), train.hour, train.minute, 0);
+
+                        // 現在時刻より後の電車のみを追加
+                        if (departure > now) {
+                            allPotentialTrains.push({
+                                time: formatTime(train.hour, train.minute),
+                                actualDepartureTime: departure // ソート用にDateオブジェクトも保持
+                            });
+                        }
+                    }
+                }
+
+                // actualDepartureTimeでソート
+                allPotentialTrains.sort((a, b) => a.actualDepartureTime.getTime() - b.actualDepartureTime.getTime());
+
+                // カウントダウンタイマーで表示している電車を除外し、次の5本を取得
+                const trainsForList = allPotentialTrains.slice(1); // 最初の1つをスキップ
+
+                // 表示用にtimeと残り時間（秒数なし）を抽出し、最大5本に制限
+                const finalUpcomingTrains = trainsForList.slice(0, 5).map(train => {
+                    const distance = train.actualDepartureTime.getTime() - now.getTime();
+                    // 分数に変換し、小数点以下を切り捨てる (Math.floor)
+                    const remainingMinutes = Math.floor(distance / (1000 * 60));
+
+                    let remainingTimeText = '';
+                    if (remainingMinutes <= 0) {
+                        remainingTimeText = '発車済み';
+                    } else if (remainingMinutes < 60) {
+                        remainingTimeText = `${remainingMinutes}分後`;
+                    } else {
+                        // 60分以上の場合は空欄にする
+                        remainingTimeText = '';
+                    }
+
+                    return {
+                        time: train.time,
+                        displayRemainingTime: remainingTimeText, // 新しい表示用プロパティ
+                    };
+                });
+
+                setUpcomingTrains(finalUpcomingTrains);
+            };
+
+            // コンポーネントがマウントされたときにタイマーを開始
+            React.useEffect(() => {
+                updateCountdown(); // 初回カウントダウン表示
+                updateTrainList(); // 初回リスト表示
+
+                const countdownInterval = setInterval(updateCountdown, 1000); // 1秒ごとにカウントダウンを更新
+                const listUpdateInterval = setInterval(updateTrainList, 60 * 1000); // 1分ごとにリストを更新
+
+                // コンポーネントがアンマウントされるときにクリーンアップ
+                return () => {
+                    clearInterval(countdownInterval);
+                    clearInterval(listUpdateInterval);
+                };
+            }, []); // 空の依存配列でマウント時のみ実行
+
+            return (
+                <div className="bg-gray-900 rounded-xl shadow-xl p-6 sm:p-8 space-y-6 border border-gray-700 flex flex-col items-center">
+                    <h1 className="text-3xl sm:text-4xl font-extrabold text-center text-blue-400 mb-4">
+                        都営浅草線<br/>東日本橋 → 西馬込方面
+                    </h1>
+
+                    <div id="next-departure-info" className={`${countdownColorClass} text-white p-5 rounded-lg shadow-md text-center mb-6 w-full`}>
+                        <p id="next-departure-text" className="text-2xl font-semibold mb-2">{nextDepartureInfo}</p>
+                        <div id="countdown" className="text-7xl sm:text-8xl font-bold tracking-tight">
+                            {countdownText}
+                        </div>
+                    </div>
+
+                    <div className="bg-gray-800 p-5 rounded-lg shadow-md border border-gray-700 w-full">
+                        <h2 className="text-xl sm:text-2xl font-bold text-blue-400 mb-4 text-center">今後の発車時刻</h2>
+                        <ul id="train-list" className="space-y-0.5 text-gray-300">
+                            {upcomingTrains.length === 0 ? (
+                                <li className="p-2 bg-gray-900 rounded-md shadow-sm border border-gray-700 text-center text-gray-500">
+                                    以降の電車はありません。
+                                </li>
+                            ) : (
+                                upcomingTrains.map((train, index) => (
+                                    <li key={index} className="p-2 bg-gray-900 rounded-md shadow-sm border border-gray-700 flex justify-between items-center">
+                                        <span className="font-medium text-lg">{train.time}</span>
+                                        {/* text-sm から text-lg に変更 */}
+                                        <span className="font-medium text-lg text-gray-400">{train.displayRemainingTime}</span>
+                                    </li>
+                                ))
+                            )}
+                        </ul>
+                        <p className="text-sm text-gray-500 mt-2 text-center">
+                            令和6年11月25日改訂
+                            <br />
+                            <a href="https://www.kotsu.metro.tokyo.jp/subway/timetable/asakusa/A18SD.html" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                                都営浅草線 浅草駅 西馬込方面 時刻表
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            );
+        };
+
+        // ReactアプリをDOMにレンダリング
+        const rootElement = document.getElementById('root');
+        ReactDOM.createRoot(rootElement).render(<App />);
+    </script>
+</body>
+</html>
