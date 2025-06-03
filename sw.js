@@ -9,7 +9,7 @@ self.addEventListener('install', function(event) {
 		caches
 			.open(CACHE_NAME)
 			.then(function(cache) {
-				return cache.addAll(app);
+				return cache.addAll(pwa_taikin2);
 			})
 	);
 });

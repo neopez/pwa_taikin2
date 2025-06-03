@@ -1,6 +1,6 @@
 {
-	"short_name": "cotimer2",
-	"name": "clock_out_timer2",
+	"short_name": "東日本橋タイマー",
+	"name": "東日本橋タイマー",
 	"display": "standalone",
 	"start_url": "index.html",
 	"icons": [
